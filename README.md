@@ -1,16 +1,16 @@
 ## Advanced Lane Finding
 [![Udacity - Self-Driving Car NanoDegree](https://s3.amazonaws.com/udacity-sdc/github/shield-carnd.svg)](http://www.udacity.com/drive)
 This project really challenged me and I really enjoyed working on it. In some ways it was complex and in others simple solution to complex issues did the best job.
-
-The goals / steps of this project are the following:
-1 Compute the camera calibration matrix and distortion coefficients given a set of chessboard images.
-2 Apply the distortion correction to the raw image.
-3 Apply a perspective transform to rectify binary image ("birds-eye view").
-4 Use color transforms, gradients, etc., to create a thresholded binary image.
-5 Detect lane pixels and fit to find lane boundary.
-6 Determine curvature of the lane and vehicle position with respect to center.
-7 Warp the detected lane boundaries back onto the original image.
-8 Output visual display of the lane boundaries and numerical estimation of lane curvature and vehicle position.
+<br>
+The goals / steps of this project are the following:<br>
+1 Compute the camera calibration matrix and distortion coefficients given a set of chessboard images.<br>
+2 Apply the distortion correction to the raw image.<br>
+3 Apply a perspective transform to rectify binary image ("birds-eye view").<br>
+4 Use color transforms, gradients, etc., to create a thresholded binary image.<br>
+5 Detect lane pixels and fit to find lane boundary.<br>
+6 Determine curvature of the lane and vehicle position with respect to center.<br>
+7 Warp the detected lane boundaries back onto the original image.<br>
+8 Output visual display of the lane boundaries and numerical estimation of lane curvature and vehicle position.<br>
 
 ### Steps 1 and 2: *Compute camera calibration and apply it*
 This was a simple task. I used lecture notes to figure out calibration for the camera. I used ```cv2.findChessboardCorners``` and ```cv2.calibrateCamera``` to achieve this.
@@ -62,16 +62,16 @@ This was by far the most trickiest piece for me. Apart from getting the approach
 
 ##### *Correct approach detecting lines*
 The approach that worked and required no hard coding was simple and the fastest. It was explained in the material but for some reason as I had said earlier I wanted a more complex solution.
-The method ```transpose_line``` did two things:
-1. Detect and left, lane middle and right line pixels.
-2. Find curvature
-The process I followed was this:
+The method ```transpose_line``` did two things:<br>
+1. Detect and left, lane middle and right line pixels.<br>
+2. Find curvature.<br>
+The process I followed was this:<br>
 - I start by taking a histogram of 60% of the image(half missed starting pixels on some images). I take the midpoint and find the left peak by using ```argmax``` for the image from 0 column to the middle. I repeat this from midpoint to last column to give me right peak. These two peaks now are starting pixel points for the left and right image.
 - I now slice the image into strips along rows and create a sliding window at the starting pixel for the left line. I deduct 50 pixel and add 50 pixel to the starting left line pixel to give me a start_col and end_col for the window that I am going to search for pixels for the left line. If I find pixels I take a mean of all the pixel found and make that value as the new starting position for sliding window for the next slize. I repeat this process to get all the pixel on the left line.
 - I follow the same steps as above point for the right line as well.
 - I also mark the middle pixel for both left(```middle_px_left_lane```) and right(```middle_px_right_lane```) line at the 50th slice (i am taking 100 horizontal slices of the image)
 
-The above sliding window appoach gives me all the pixels accurately enough.
+The above sliding window approach gave me all the pixels accurately.
 
 ##### *Fitting the pixels to a second order polynomial*
 Once the pixels are found for both left and right lines, I used the following methods to get a fit on second order polynomial
