@@ -5,7 +5,7 @@ This project really challenged me and I really enjoyed working on it. In some wa
 The goals / steps of this project are the following:<br>
 1. Compute the camera calibration matrix and distortion coefficients given a set of chessboard images.<br>
 2. Apply the distortion correction to the raw image.<br>
-3. Apply a perspective transform to rectify binary image ("birds-eye view").<br>
+3. Apply a perspective transform to rectify image ("birds-eye view").<br>
 4. Use color transforms, gradients, etc., to create a thresholded binary image.<br>
 5. Detect lane pixels and fit to find lane boundary.<br>
 6. Determine curvature of the lane and vehicle position with respect to center.<br>
@@ -21,7 +21,8 @@ I pass distortion Coefficients and camera Matrix to ```cv2.undistort``` to get u
 
 ![Undistort an image](undistorted_image.png)
 
-### Steps 3: *Apply a perspective transform to rectify binary image ("birds-eye view").*
+### Steps 3: *Apply a perspective transform to rectify image ("birds-eye view").*
+*I chose to do this step before applying color transform*
 The idea was to use ```cv2.getPerspectiveTransform``` and ```cv2.warpPerspective``` by passing in an undistorted image from earlier and src and dst pixel points.
 
 Choosing the src and dst points for some reason turned out to be an interesting exercise. I wanted to get birds eye view which meant to choose src pixels that created an <b>Isosceles trapezoid</b> and then stretch it to make a square. After trying umpteen variations the ones that I felt did the best jobs where
