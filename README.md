@@ -64,10 +64,10 @@ This was by far the most trickiest piece for me. Apart from getting the approach
 The approach that worked and required no hard coding was simple and the fastest. It was explained in the material but for some reason as I had said earlier I wanted a more complex solution.
 The method ```transpose_line``` did two things, which sort of violates the single responsibility principle.
 * Detect and left and right line pixels.
-** I start by taking a histogram of 60% of the image(half missed starting pixels on some images). I take the midpoint and find the left peak by using ```argmax``` for the image from 0 column to the middle. I repeat this from midpoint to last column to give me right peak. These two peaks now are starting pixel points for the left and right image.
-** I now slice the image into strips along rows and create a sliding window at the starting pixel for the left line. I deduct 50 pixel and add 50 pixel to the starting left line pixel to give me a start_col and end_col for the window that I am going to search for pixels for the left line. If I find pixels I take a mean of all the pixel found and make that value as the new starting position for sliding window for the next slize. I repeat this process to get all the pixel on the left line.
-** I follow the same steps as above point for the right line as well.
-** I also mark the middle pixel for both left(```middle_px_left_lane```) and right(```middle_px_right_lane```) line at the 50th slice (i am taking 100 horizontal slices of the image)
+..* I start by taking a histogram of 60% of the image(half missed starting pixels on some images). I take the midpoint and find the left peak by using ```argmax``` for the image from 0 column to the middle. I repeat this from midpoint to last column to give me right peak. These two peaks now are starting pixel points for the left and right image.
+..* I now slice the image into strips along rows and create a sliding window at the starting pixel for the left line. I deduct 50 pixel and add 50 pixel to the starting left line pixel to give me a start_col and end_col for the window that I am going to search for pixels for the left line. If I find pixels I take a mean of all the pixel found and make that value as the new starting position for sliding window for the next slize. I repeat this process to get all the pixel on the left line.
+..* I follow the same steps as above point for the right line as well.
+..* I also mark the middle pixel for both left(```middle_px_left_lane```) and right(```middle_px_right_lane```) line at the 50th slice (i am taking 100 horizontal slices of the image)
 
 The above sliding window appoach gives me all the pixels accurately enough.
 
@@ -158,12 +158,12 @@ def drawlines(transformed, left_fitx, ycord_left_line, right_fitx, ycord_right_l
 ### Step 8: Output
 I wrote a pipeline method that takes a image combines all the methods above to give me a returned image that has lines detected and drawn on it.
 The method
-    1. undistorts the image
-    2. does a color tranform
-    3. does a perspective tranform
-    4. detects lines, middle and curvature
-    5. drawslines and reverts the perspective transform
-    6. returns a final image with all the details
+1. undistorts the image
+2. does a color tranform
+3. does a perspective tranform
+4. detects lines, middle and curvature
+5. drawslines and reverts the perspective transform
+6. returns a final image with all the details
 
 ```
 def pipeline(image):
