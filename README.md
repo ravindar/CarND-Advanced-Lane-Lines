@@ -25,7 +25,7 @@ I pass distortion Coefficients and camera Matrix to ```cv2.undistort``` to get u
 *I chose to do this step before applying color transform*
 The idea was to use ```cv2.getPerspectiveTransform``` and ```cv2.warpPerspective``` by passing in an undistorted image from earlier and src and dst pixel points.
 
-Choosing the src and dst points for some reason turned out to be an interesting exercise. I wanted to get birds eye view which meant to choose src pixels that created an <b>Isosceles trapezoid</b> and then stretch it to make a square. After trying umpteen variations the ones that I felt did the best jobs where
+Choosing the src and dst points for some reason turned out to be an interesting exercise. I wanted to get birds eye view which meant to choose src pixels that created an <b>Isosceles trapezoid</b> and then stretch it to make a rectangle. After trying umpteen variations the ones that I felt did the best jobs where
 
 ```
 src = np.float32([(300, 720),(580, 470),(730, 470),(1100, 720)])
