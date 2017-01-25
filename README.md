@@ -48,6 +48,39 @@ I created a method ```color_transform_n_threshold``` and the implementation that
 
 ```bit_layer = s_ch_binary | sobelx | sobely | yellow_rgb | yellow_hsv | yellow_hls | white_rgb | white_hsv | white_hls```
 
+#### UPDATE Steps 4
+After feedback from review and the suggestion to use different threshold values, I updated the code to
+```
+    hls = cv2.cvtColor(img, cv2.COLOR_RGB2HLS)
+
+    l_ch = hls[:,:,1]
+    s_ch = hls[:,:,2]
+
+    #retval, s_ch_binary = cv2.threshold(s_ch.astype('uint8'), s_thresh[0], s_thresh[1], cv2.THRESH_BINARY)
+    s_ch_binary = np.zeros_like(s_ch)
+    #s_ch_binary[(s_ch > 150) & (s_ch <= 200)] = 1
+    s_ch_binary[(l_ch > 120) & (l_ch <= 255) &
+                (s_ch > s_thresh[0]) & (s_ch <= s_thresh[1])] = 1
+
+    yellow_hls = cv2.inRange(hls, (20, 100, 100), (50, 255, 255))
+    white_hls = cv2.inRange(hls, (200,200,200), (255,255,255))
+
+    # Sobel x
+    sobelx = abs_sobel_thresh(img, 'x', sx_thresh[0], sx_thresh[1])
+
+    # Sobel y
+    #sobely = abs_sobel_thresh(img, 'y', 100, 200)
+    sobely = abs_sobel_thresh(img, 'y', sx_thresh[0], sx_thresh[1])
+
+    # Combine the filters.
+    combined_sobel = cv2.bitwise_and(sobelx, sobely)
+
+    bit_layer = cv2.bitwise_or(s_ch_binary, combined_sobel)
+ ```
+I essentially went back to the basics and used what was suggested and what was presented in class notes.
+
+Below are updated results -->
+
 ![Color Transform](color_transform.png)
 
 
@@ -110,6 +143,10 @@ Once I had the lane_middle, a right and left polynomial fit, and curvature value
 
 I could have used a LineObject to hold all these values, but felt I didn't really need that. OO practices will tell you to not have methods that return that many values but it seemed ok to me personally.
 
+### UPDATE Steps 5 and 6
+I broke the method into multiple methods, one to detect lines called `get_lines` and the other one to add info to the image called `add_info`
+I also added a line object and a frame object. The line object was used to save the last ditected
+
 ### Step 7: Warp the detected lane boundaries back onto the original image.
 I created a method drawlines that takes a color & perspective transofmed image, the left and right pixel fitted to a second order polynomial from earlier step., source and destination points for reverse perspective transform, the original image, undistroted version of the image, curvature values and lane middle
 
@@ -122,7 +159,21 @@ I also write all the information in panel on the image regarding curvature and d
 I return the final result.
 
 ```
-def drawlines(transformed, left_fitx, ycord_left_line, right_fitx, ycord_right_line, src, dst, image, undst, left_curverad, right_curverad, lane_middle):
+def add_info(result, left_curverad, right_curverad, lane_middle):
+    font = cv2.FONT_HERSHEY_SIMPLEX
+    cv2.putText(result, 'Left line curve = %d(m)' % left_curverad, (50,50), font, 1,(255,255,255),2)
+    cv2.putText(result, 'Right line curve = %d(m)' % right_curverad, (50,100), font, 1,(255,255,255),2)
+    if (lane_middle-640 > 0):
+        offset = ((lane_middle-640)/640.*(3.66/2.))
+        left_or_right = "right"
+    else:
+        offset = ((lane_middle-640)/640.*(3.66/2.))*-1
+        left_or_right = "left"
+    left_or_right = 'left' if offset < 0 else 'right'
+    cv2.putText(result, 'Vehicle is %.2fm %s of center' % (np.abs(offset), left_or_right), (50,150), font, 1,(255,255,255),2)
+    return result
+
+def drawlines(transformed, left_fitx, ycord_left_line, right_fitx, ycord_right_line, src, dst, image, undst):
     # Create an image to draw the lines on
     warp_zero = np.zeros_like(transformed).astype(np.uint8)
     color_warp = np.dstack((warp_zero, warp_zero, warp_zero))
@@ -140,18 +191,6 @@ def drawlines(transformed, left_fitx, ycord_left_line, right_fitx, ycord_right_l
     # Combine the result with the original image
     result = cv2.addWeighted(undst, 1, newwarp, 0.3, 0)
 
-    font = cv2.FONT_HERSHEY_SIMPLEX
-    cv2.putText(result, 'Left line curve = %d(m)' % left_curverad, (50,50), font, 1,(255,255,255),2)
-    cv2.putText(result, 'Right line curve = %d(m)' % right_curverad, (50,100), font, 1,(255,255,255),2)
-    if (lane_middle-640 > 0):
-        offset = ((lane_middle-640)/640.*(3.66/2.))
-        left_or_right = "right"
-    else:
-        offset = ((lane_middle-640)/640.*(3.66/2.))*-1
-        left_or_right = "left"
-    left_or_right = 'left' if offset < 0 else 'right'
-    cv2.putText(result, 'Vehicle is %.2fm %s of center' % (np.abs(offset), left_or_right), (50,150), font, 1,(255,255,255),2)
-
     return result
 
  ```
@@ -165,27 +204,108 @@ The method
 - does a color tranform
 - does a perspective tranform
 - detects lines, middle and curvature
+**- average out coefficients found from the last few images**
 - drawslines and reverts the perspective transform
 - returns a final image with all the details
 
 ```
-def pipeline(image):
+class Frame:
+    def __init__(self):
+        self.frame_count = 0
+        self.left_curvature = 0
+        self.right_curvature = 0
+        self.middle = 0
+
+# Define a class to receive the characteristics of each line detection
+class Line():
+    def __init__(self):
+        #was the line detected in the last iteration?
+        self.detected = False
+        #polynomial coefficients for the last n iterations
+        self.previous_fits = []
+        #polynomial coefficients for the most recent fit
+        self.current_fit = None
+        #curvature for the last n iterations
+        self.previous_radius_of_curvatures = []
+        #radius of curvature of the line in meters
+        self.radius_of_curvature = None
+
+    def check_reset(self, x):
+        if (len(x) < 100):
+            self.detected = False
+            self.frames_skipped = 0
+            self.previous_fits = []
+            self.previous_radius_of_curvatures = []
+```
+
+
+updated pipeline based on feedback from first review
+
+```
+def pipeline(image, left_line, right_line, frame):
     undst = cv2.undistort(image, mtx, dist, None, mtx)
 
     s_b, combined_b = color_transform_n_threshold(image)
     #s_b_transformed = perspective_transform(s_b, src, dst, (s_b.shape[1], s_b.shape[0]))
     combined_b_transformed = perspective_transform(combined_b, src, dst, (combined_b.shape[1], combined_b.shape[0]))
 
-    left_fitx, ycord_left_line, right_fitx, ycord_right_line, left_curverad, right_curverad = transpose_line(combined_b_transformed)
+    xcord_left_line, ycord_left_line, xcord_right_line, ycord_right_line, lane_middle = get_line(combined_b_transformed)
+    left_fit, left_fitx, right_fit, right_fitx, left_curverad, right_curverad = fit_polynomial(xcord_left_line, ycord_left_line, xcord_right_line, ycord_right_line)
+
+    left_line.check_reset(xcord_left_line)
+    left_line.previous_fits.append(left_fitx)
+    left_line.previous_fits = left_line.previous_fits[-NUM_OF_FRAMES:]
+    left_fitx = np.average(left_line.previous_fits, axis=0)
+
+    left_line.previous_radius_of_curvatures.append(left_curverad)
+    left_line.previous_radius_of_curvatures = left_line.previous_radius_of_curvatures[-NUM_OF_FRAMES:]
+    left_curverad = np.average(left_line.previous_radius_of_curvatures, axis=0)
+
+    left_line.current_fit = left_fitx
+    left_line.radius_of_curvature = left_curverad
+
+    right_line.check_reset(xcord_right_line)
+    right_line.previous_fits.append(right_fitx)
+    right_line.previous_fits = right_line.previous_fits[-NUM_OF_FRAMES:]
+    right_fitx = np.average(right_line.previous_fits, axis=0)
+
+    right_line.previous_radius_of_curvatures.append(right_curverad)
+    right_line.previous_radius_of_curvatures = right_line.previous_radius_of_curvatures[-NUM_OF_FRAMES:]
+    right_curverad = np.average(right_line.previous_radius_of_curvatures, axis=0)
+
+    right_line.current_fit = right_fitx
+    right_line.radius_of_curvature = right_curverad
+
+    # Periodically update the curvature and lane_middle.
+    if frame.frame_count % 5 == 0:
+        frame.left_curvature = int(left_line.radius_of_curvature)
+        frame.right_curvature = int(right_line.radius_of_curvature)
+        frame.middle = lane_middle
+
+    frame.frame_count += 1
+
     r = drawlines(combined_b_transformed, left_fitx, ycord_left_line, right_fitx, ycord_right_line, src, dst, image, undst)
+    r = add_info(r, frame.left_curvature, frame.right_curvature, frame.middle)
     return r
 ```
 
 The pipeline method is fed by taking the video clip and takeing each frame and passing it to the method pipeline like so
 ```
+def process_image():
+    left_line = Line()
+    right_line = Line()
+    frame = Frame()
+    return (lambda img: pipeline(img, left_line, right_line, frame))
+
 clip1 = VideoFileClip("project_video.mp4")
-project_clip = clip1.fl_image(pipeline)
+project_clip = clip1.fl_image(process_image())
 
 %time project_clip.write_videofile('project_video_updated.mp4', audio=False)
 ```
+
+
+### Discussion
+
+1. The one thing that I did not get at first was the need for a Line class as was suggested in class notes. But after the feedback from the first submission  I realized I needed something like that to be able to get average values.
+2. One of the places this pipeline really fails is when the road conditions or lines are not easily distingushable. The thresholding mechanism I used which was suggested in the class notes is very rigid, so when there are snow or rain conditions, this thing will not be able to easily distinguish lines. 
 
